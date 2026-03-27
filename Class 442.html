@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Class 4 Smart School Navigation System</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css"/>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <style>
+    body { font-family: Arial; text-align: center; }
+    #map { height: 500px; width: 100%; margin-bottom: 10px; }
+    button { padding: 8px; margin: 4px; font-size: 14px; }
+    #coords, #info { font-weight: bold; margin: 6px; }
+    #qrcode { margin: 10px auto; }
+  </style>
+</head>
+
+<body>
+
+<h2>Class 4 Smart School Navigation System (Auto + Voice + QR)</h2>
+
+<p id="coords">Lat: -- , Lng: --</p>
+<p id="info">Detecting your location...</p>
+
+<button onclick="getLocation()">My Location</button>
+<button onclick="goPlace('Library')">Library</button>
+<button onclick="goPlace('ICT')">ICT Lab</button>
+<button onclick="goPlace('Office')">Office</button>
+<button onclick="goPlace('Classroom')">Classroom</button>
+<button onclick="goPlace('Canteen')">Canteen</button>
+<button onclick="goPlace('Play ground')">Play ground</button>
+<button onclick="refreshMap()">Refresh</button>
+
+<div id="map"></div>
+<div id="qrcode"></div>
+
+<script>
+// ================= MAP =================
+let map = L.map('map').setView([5.54949, -0.26425], 17);
+
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19
+}).addTo(map);
+
+// ================= LOCATIONS =================
+let places = {
+ Library: {lat:5.54911, lng:-0.26390},
+ ICT: {lat:5.54961, lng:-0.26414},
+ Office: {lat:5.54951, lng:-0.26376},
+ Classroom: {lat:5.54946, lng:-0.26375},
+ Canteen: {lat:5.54949, lng:-0.26425},
+ "Play ground": {lat:5.54933, lng:-0.26400}
+};
+
+// ================= VARIABLES =================
+let myLat = 0, myLng = 0;
+let routingControl;
+let myMarker;
+
+// ================= COORDINATES DISPLAY =================
+map.on('mousemove', function(e){
+ document.getElementById("coords").innerHTML =
+  "Lat: " + e.latlng.lat.toFixed(5) +
+  " , Lng: " + e.latlng.lng.toFixed(5);
+});
+
+// ================= VOICE =================
+function speak(text){
+ if('speechSynthesis' in window){
+   let utterance = new SpeechSynthesisUtterance(text);
+   window.speechSynthesis.speak(utterance);
+ }
+}
+
+// ================= AUTO LOCATION =================
+function getLocation(){
+
+ if(navigator.geolocation){
+
+  document.getElementById("info").innerHTML = "Detecting your location...";
+
+  navigator.geolocation.watchPosition(function(pos){
+
+   myLat = pos.coords.latitude;
+   myLng = pos.coords.longitude;
+
+   map.setView([myLat, myLng], 18);
+
+   if(myMarker){
+     map.removeLayer(myMarker);
+   }
+
+   myMarker = L.marker([myLat, myLng])
+     .addTo(map)
+     .bindPopup("My Location");
+
+   document.getElementById("info").innerHTML = "Location detected ✔";
+
+  }, function(err){
+   document.getElementById("info").innerHTML =
+    "Location access denied ❌";
+  },
+  {
+    enableHighAccuracy: true,
+    maximumAge: 0,
+    timeout: 10000
+  });
+
+ }
+}
+
+// ================= ROUTING =================
+function goPlace(name){
+
+ let dest = places[name];
+
+ if(!myLat || !myLng){
+   alert("Waiting for location...");
+   return;
+ }
+
+ if(routingControl){
+   map.removeControl(routingControl);
+ }
+
+ routingControl = L.Routing.control({
+   waypoints: [
+     L.latLng(myLat, myLng),
+     L.latLng(dest.lat, dest.lng)
+   ],
+   routeWhileDragging: false,
+   show: false,
+   lineOptions: {
+     styles: [{color: 'blue', weight: 5}]
+   }
+ }).addTo(map);
+
+ routingControl.on('routesfound', function(e){
+
+   let r = e.routes[0];
+
+   let distance = (r.summary.totalDistance / 1000).toFixed(2);
+   let time = (r.summary.totalTime / 60).toFixed(1);
+
+   document.getElementById("info").innerHTML =
+    "Distance: " + distance + " km | Time: " + time + " min";
+
+   speak(`Routing to ${name}. Distance is ${distance} kilometers. Estimated time is ${time} minutes.`);
+
+ });
+}
+
+// ================= QR CODE =================
+function generateQRCode(){
+ new QRCode(document.getElementById("qrcode"), {
+   text: "https://example.com/navigation.html", // REPLACE THIS
+   width: 120,
+   height: 120
+ });
+}
+
+// ================= REFRESH =================
+function refreshMap(){
+ location.reload();
+}
+
+// ================= AUTO LOAD =================
+window.onload = function(){
+
+ generateQRCode();
+
+ setTimeout(() => {
+   getLocation();
+ }, 1000);
+
+};
+</script>
+
+</body>
+</html>
